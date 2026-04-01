@@ -25,8 +25,9 @@ from matplotlib.figure import Figure
 try:
     import pyi_splash
 except ImportError:
-    pyi_splash = None
+    pyi_splash = None  # This was the typo! It should be None, not another import.
 
+    
 # --- [ RESOURCE PATH UTILITY ] ---
 def resource_path(relative_path):
     """
@@ -40,20 +41,23 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-# --- [ GLOBAL DESIGN CONFIG ] ---
-CYBER_BG      = "#05060F"  # Deepest Midnight
-CYBER_SIDEBAR = "#0D0F25"  # Sidebar Navy
-CYBER_ACCENT  = "#00F0FF"  # Electric Cyan
-CYBER_LABEL   = "#39FF14"  # Matrix Green
-CYBER_ERROR   = "#FF2E63"  # Neon Rose
-CYBER_DARK    = "#020308"  # Pure Black for Input Fields
-CYBER_BORDER  = "#1A1E3D"  # Subtle container borders
+# --- [ GLOBAL DESIGN CONFIG - MODERN CLEAN THEME ] ---
+BG_MAIN       = "#11131A"  # Deep slate background
+BG_SIDEBAR    = "#1A1D24"  # Slightly lighter sidebar
+BG_CARD       = "#252A36"  # Card background for vault/inputs
+ACCENT_BLUE   = "#3B82F6"  # Modern bright blue
+ACCENT_HOVER  = "#2563EB"
+TEXT_MAIN     = "#F3F4F6"  # Crisp off-white
+TEXT_MUTED    = "#9CA3AF"  # Soft gray for secondary text
+COLOR_SUCCESS = "#10B981"  # Emerald green
+COLOR_ERROR   = "#EF4444"  # Soft red
 
-FONT_TERMINAL = "Consolas"
+FONT_MAIN     = ("Roboto", 14)          # Clean sans-serif for UI
+FONT_TITLE    = ("Roboto", 20, "bold")  # Larger titles
+FONT_TERMINAL = ("Consolas", 12)        # Kept for logs and raw data
+RADIUS_UI     = 8                       # Softer, modern corners
 SIDE_W        = 340
-RADIUS_UI     = 12
-BORDER_W      = 2
-GAP_S, GAP_M, GAP_L = 8, 16, 28
+GAP_S, GAP_M, GAP_L = 10, 20, 30
 
 ctk.set_appearance_mode("Dark")
 
@@ -68,10 +72,9 @@ class FaceApp(ctk.CTk):
         # --- WINDOW CONFIGURATION ---
         self.title("Made with ❤️ by OM")
         self.geometry("1450x880")
-        self.configure(fg_color=CYBER_BG)
+        self.configure(fg_color=BG_MAIN)
 
         # --- DATA & ENGINE INITIALIZATION ---
-        # Note: We keep these in the local folder for persistent writing
         self.DB_FILE = "face_data.pkl"
         self.SUBJECTS_FILE = "subjects.pkl"
         
@@ -86,7 +89,6 @@ class FaceApp(ctk.CTk):
         self.chart_canvas = None
 
         # --- EVENT BINDINGS ---
-        # Fix for the "68s" bug - handling both lowercase and uppercase 'S'
         self.bind("<s>", self.save_face_handler)
         self.bind("<S>", self.save_face_handler)
 
@@ -109,133 +111,175 @@ class FaceApp(ctk.CTk):
 
     def _build_sidebar(self):
         """Constructs the primary control column."""
-        self.sidebar_frame = ctk.CTkFrame(self, width=SIDE_W, corner_radius=0)
+        self.sidebar_frame = ctk.CTkFrame(self, width=SIDE_W, corner_radius=0, fg_color=BG_SIDEBAR)
         self.sidebar_frame.grid(row=0, column=0, rowspan=2, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(10, weight=1) # Spacer to push exit button down
 
         # 1. Branding
         self.logo_label = ctk.CTkLabel(
-            self.sidebar_frame, text="🛡️ NEURAL-SCAN",
-            font=(FONT_TERMINAL, 24, "bold"), text_color=CYBER_ACCENT
+            self.sidebar_frame, text="NeuralScan",
+            font=FONT_TITLE, text_color=ACCENT_BLUE
         )
-        self.logo_label.grid(row=0, column=0, padx=GAP_M, pady=(GAP_L, GAP_L))
+        self.logo_label.grid(row=0, column=0, padx=GAP_M, pady=(GAP_L, GAP_M), sticky="w")
 
         # 2. Registration Command
         self.reg_toggle_btn = ctk.CTkButton(
-            self.sidebar_frame, text="[ SYNC_NEW_NODE ]",
-            height=48, font=(FONT_TERMINAL, 13, "bold"),
+            self.sidebar_frame, text="+ Add New Student",
+            height=40, font=("Roboto", 13, "bold"),
+            fg_color=BG_CARD, text_color=TEXT_MAIN, hover_color=BG_MAIN,
+            border_width=1, border_color=ACCENT_BLUE,
             command=self.toggle_registration_form
         )
         self.reg_toggle_btn.grid(row=1, column=0, padx=GAP_M, pady=GAP_S, sticky="ew")
 
         # 3. Instruction Panel (Dynamic User Feedback)
         self.instruction_frame = ctk.CTkFrame(
-            self.sidebar_frame, fg_color=CYBER_DARK, border_width=1, border_color=CYBER_ACCENT
+            self.sidebar_frame, fg_color=BG_CARD, corner_radius=RADIUS_UI
         )
-        self.instruction_frame.grid(row=2, column=0, padx=GAP_M, pady=(0, GAP_M), sticky="ew")
+        self.instruction_frame.grid(row=2, column=0, padx=GAP_M, pady=(GAP_S, GAP_M), sticky="ew")
         
         self.instruction_label = ctk.CTkLabel(
             self.instruction_frame,
-            text=">> SYSTEM_ONLINE\n>> Select protocol to begin.",
-            font=(FONT_TERMINAL, 12), text_color=CYBER_LABEL,
-            wraplength=SIDE_W - 40, justify="left"
+            text="System Online\nSelect a protocol to begin.",
+            font=FONT_MAIN, text_color=TEXT_MUTED,
+            wraplength=SIDE_W - 60, justify="center"
         )
-        self.instruction_label.pack(padx=10, pady=10)
+        self.instruction_label.pack(padx=15, pady=15)
 
         # 4. Hidden Registration Interface (Toggled)
-        self.registration_frame = ctk.CTkFrame(self.sidebar_frame, fg_color=CYBER_DARK)
-        self.name_entry = ctk.CTkEntry(self.registration_frame, placeholder_text="ID_ALIAS (Letters)", height=40)
+        self.registration_frame = ctk.CTkFrame(self.sidebar_frame, fg_color=BG_CARD, corner_radius=RADIUS_UI)
+        self.name_entry = ctk.CTkEntry(self.registration_frame, placeholder_text="Student Name", height=38, border_width=0, fg_color=BG_MAIN)
         self.name_entry.pack(padx=GAP_M, pady=(GAP_M, GAP_S), fill="x")
-        self.roll_entry = ctk.CTkEntry(self.registration_frame, placeholder_text="ROLL_TOKEN (Digits)", height=40)
+        self.roll_entry = ctk.CTkEntry(self.registration_frame, placeholder_text="Roll Number", height=38, border_width=0, fg_color=BG_MAIN)
         self.roll_entry.pack(padx=GAP_M, pady=(0, GAP_S), fill="x")
         self.confirm_reg_btn = ctk.CTkButton(
-            self.registration_frame, text="UPLOAD_ENCODING",
-            fg_color=CYBER_ACCENT, text_color="black",
+            self.registration_frame, text="Scan Face (Press S)",
+            fg_color=ACCENT_BLUE, hover_color=ACCENT_HOVER, text_color="white",
+            font=("Roboto", 13, "bold"), height=38,
             command=self.validate_and_start
         )
-        self.confirm_reg_btn.pack(padx=GAP_M, pady=(0, GAP_M), fill="x")
+        self.confirm_reg_btn.pack(padx=GAP_M, pady=(GAP_S, GAP_M), fill="x")
 
         # 5. Subject Configuration
-        self.sub_label = ctk.CTkLabel(self.sidebar_frame, text="PROTOCOL_SUBJECT:", font=(FONT_TERMINAL, 11, "bold"), text_color=CYBER_ACCENT)
+        self.sub_label = ctk.CTkLabel(self.sidebar_frame, text="Select Subject", font=("Roboto", 12, "bold"), text_color=TEXT_MUTED)
         self.sub_label.grid(row=4, column=0, padx=GAP_M, pady=(GAP_L, 4), sticky="w")
         
-        self.subject_menu = ctk.CTkComboBox(self.sidebar_frame, values=self.subjects, height=38)
+        self.subject_menu = ctk.CTkComboBox(
+            self.sidebar_frame, values=self.subjects, height=38,
+            fg_color=BG_CARD, border_width=0, button_color=BG_CARD
+        )
         self.subject_menu.grid(row=5, column=0, padx=GAP_M, pady=(0, GAP_S), sticky="ew")
         if self.subjects: self.subject_menu.set(self.subjects[0])
         
-        self.new_sub_btn = ctk.CTkButton(self.sidebar_frame, text="+ ADD_PROTOCOL", height=32, command=self.add_new_subject)
+        self.new_sub_btn = ctk.CTkButton(
+            self.sidebar_frame, text="+ Add Subject", height=32, 
+            fg_color="transparent", text_color=ACCENT_BLUE, hover_color=BG_CARD,
+            command=self.add_new_subject
+        )
         self.new_sub_btn.grid(row=6, column=0, padx=GAP_M, pady=(0, GAP_M), sticky="ew")
 
         # 6. Global Action
         self.recog_btn = ctk.CTkButton(
-            self.sidebar_frame, text="INITIATE_SCAN", 
-            height=64, fg_color="#1A1E3D", border_color=CYBER_LABEL, border_width=2, text_color=CYBER_LABEL,
-            font=(FONT_TERMINAL, 16, "bold"), command=self.start_recognition
+            self.sidebar_frame, text="Start Attendance Scan", 
+            height=54, fg_color=ACCENT_BLUE, hover_color=ACCENT_HOVER, text_color="white",
+            font=("Roboto", 15, "bold"), command=self.start_recognition
         )
         self.recog_btn.grid(row=8, column=0, padx=GAP_M, pady=(GAP_L, GAP_S), sticky="ew")
 
-        self.exit_btn = ctk.CTkButton(self.sidebar_frame, text="TERMINATE_SESSION", height=40, fg_color="transparent", border_width=1, border_color="gray", command=self.quit)
+        self.exit_btn = ctk.CTkButton(
+            self.sidebar_frame, text="Exit System", height=38, 
+            fg_color="transparent", border_width=1, border_color=TEXT_MUTED, text_color=TEXT_MUTED,
+            hover_color=COLOR_ERROR, command=self.quit
+        )
         self.exit_btn.grid(row=9, column=0, padx=GAP_M, pady=(0, GAP_L), sticky="ew")
 
     def _build_tabview(self):
         """Creates the main workspace navigation."""
-        self.tabview = ctk.CTkTabview(self, segmented_button_selected_color=CYBER_ACCENT)
-        self.tabview.grid(row=0, column=1, padx=GAP_M, pady=(GAP_M, 0), sticky="nsew")
-        self.tabview.add("CORE_SCAN")
-        self.tabview.add("DATA_VAULT")
-        self.tabview.add("ANALYTICS")
+        self.tabview = ctk.CTkTabview(
+            self, segmented_button_selected_color=ACCENT_BLUE,
+            segmented_button_selected_hover_color=ACCENT_HOVER,
+            segmented_button_unselected_color=BG_SIDEBAR,
+            fg_color=BG_MAIN, text_color=TEXT_MAIN
+        )
+        self.tabview.grid(row=0, column=1, padx=GAP_L, pady=(GAP_S, 0), sticky="nsew")
+        self.tabview.add("Live Scan")
+        self.tabview.add("Student Database")
+        self.tabview.add("Analytics Dashboard")
 
         # --- TAB: OPTICAL SCAN ---
-        self.scan_tab = self.tabview.tab("CORE_SCAN")
-        self.scan_tab.grid_columnconfigure(0, weight=7); self.scan_tab.grid_columnconfigure(1, weight=3)
+        self.scan_tab = self.tabview.tab("Live Scan")
+        self.scan_tab.grid_columnconfigure(0, weight=7)
+        self.scan_tab.grid_columnconfigure(1, weight=3)
         self.scan_tab.grid_rowconfigure(0, weight=1)
         
-        self.video_label = ctk.CTkLabel(self.scan_tab, text="[ NO_SIGNAL ]", font=(FONT_TERMINAL, 18), text_color=CYBER_ACCENT)
-        self.video_label.grid(row=0, column=0, padx=GAP_M, pady=GAP_M, sticky="nsew")
+        # Video Container
+        self.video_container = ctk.CTkFrame(self.scan_tab, fg_color=BG_SIDEBAR, corner_radius=RADIUS_UI)
+        self.video_container.grid(row=0, column=0, padx=(0, GAP_S), pady=GAP_M, sticky="nsew")
+        self.video_label = ctk.CTkLabel(self.video_container, text="Camera Offline", font=FONT_TITLE, text_color=TEXT_MUTED)
+        self.video_label.pack(expand=True, fill="both", padx=10, pady=10)
         
-        self.log_frame = ctk.CTkFrame(self.scan_tab, fg_color=CYBER_SIDEBAR)
-        self.log_frame.grid(row=0, column=1, padx=(0, GAP_M), pady=GAP_M, sticky="nsew")
+        # Log Container
+        self.log_frame = ctk.CTkFrame(self.scan_tab, fg_color=BG_SIDEBAR, corner_radius=RADIUS_UI)
+        self.log_frame.grid(row=0, column=1, padx=(GAP_S, 0), pady=GAP_M, sticky="nsew")
         
-        self.activity_log = ctk.CTkTextbox(self.log_frame, font=(FONT_TERMINAL, 12), fg_color=CYBER_DARK, text_color=CYBER_LABEL)
-        self.activity_log.pack(expand=True, fill="both", padx=12, pady=12)
+        log_header = ctk.CTkLabel(self.log_frame, text="Activity Log", font=("Roboto", 14, "bold"), text_color=TEXT_MAIN)
+        log_header.pack(pady=(15, 5), padx=15, anchor="w")
+        
+        self.activity_log = ctk.CTkTextbox(
+            self.log_frame, font=FONT_TERMINAL, fg_color=BG_MAIN, 
+            text_color=COLOR_SUCCESS, border_width=0, corner_radius=RADIUS_UI
+        )
+        self.activity_log.pack(expand=True, fill="both", padx=15, pady=(0, 15))
 
         # --- TAB: DATA VAULT ---
-        self.vault_tab = self.tabview.tab("DATA_VAULT")
-        self.vault_tab.grid_columnconfigure(0, weight=1); self.vault_tab.grid_rowconfigure(1, weight=1)
-        self.scrollable_vault = ctk.CTkScrollableFrame(self.vault_tab, label_text="ID_TOKEN | ALIAS_NAME | ACTIONS", label_text_color=CYBER_ACCENT)
-        self.scrollable_vault.grid(row=1, column=0, padx=GAP_L, pady=(0, GAP_L), sticky="nsew")
+        self.vault_tab = self.tabview.tab("Student Database")
+        self.vault_tab.grid_columnconfigure(0, weight=1)
+        self.vault_tab.grid_rowconfigure(1, weight=1)
+        
+        self.scrollable_vault = ctk.CTkScrollableFrame(
+            self.vault_tab, fg_color=BG_SIDEBAR, corner_radius=RADIUS_UI,
+            label_text="Registered Students", label_text_color=TEXT_MAIN, label_font=("Roboto", 16, "bold")
+        )
+        self.scrollable_vault.grid(row=1, column=0, padx=GAP_M, pady=GAP_M, sticky="nsew")
 
         # --- TAB: ANALYTICS ---
-        self.analytics_tab = self.tabview.tab("ANALYTICS")
-        self.analytics_tab.grid_columnconfigure(0, weight=1); self.analytics_tab.grid_rowconfigure(1, weight=1)
-        self.analytics_btn = ctk.CTkButton(self.analytics_tab, text="LOAD_ATTENDANCE_LOG (.XLSX)", fg_color=CYBER_SIDEBAR, border_width=1, border_color=CYBER_ACCENT, command=self.browse_attendance_file)
-        self.analytics_btn.grid(row=0, column=0, padx=GAP_L, pady=GAP_M, sticky="ew")
+        self.analytics_tab = self.tabview.tab("Analytics Dashboard")
+        self.analytics_tab.grid_columnconfigure(0, weight=1)
+        self.analytics_tab.grid_rowconfigure(1, weight=1)
         
-        self.chart_frame = ctk.CTkFrame(self.analytics_tab, fg_color=CYBER_SIDEBAR)
-        self.chart_frame.grid(row=1, column=0, padx=GAP_L, pady=(0, GAP_L), sticky="nsew")
+        self.analytics_btn = ctk.CTkButton(
+            self.analytics_tab, text="Load Attendance File (.xlsx)", 
+            fg_color=BG_CARD, hover_color=BG_SIDEBAR, border_width=1, border_color=ACCENT_BLUE,
+            text_color=ACCENT_BLUE, font=("Roboto", 14, "bold"), height=45,
+            command=self.browse_attendance_file
+        )
+        self.analytics_btn.grid(row=0, column=0, padx=GAP_L, pady=(GAP_L, GAP_S), sticky="ew")
+        
+        self.chart_frame = ctk.CTkFrame(self.analytics_tab, fg_color=BG_SIDEBAR, corner_radius=RADIUS_UI)
+        self.chart_frame.grid(row=1, column=0, padx=GAP_L, pady=(GAP_S, GAP_L), sticky="nsew")
 
     def _build_statusbar(self):
-        self.status_bar = ctk.CTkFrame(self, height=32, corner_radius=0, fg_color=CYBER_DARK)
+        self.status_bar = ctk.CTkFrame(self, height=36, corner_radius=0, fg_color=BG_SIDEBAR)
         self.status_bar.grid(row=1, column=0, columnspan=2, sticky="ew")
-        self.status_label = ctk.CTkLabel(self.status_bar, text=">> ENGINE_STANDBY", anchor="w", font=(FONT_TERMINAL, 12), text_color=CYBER_ACCENT)
-        self.status_label.pack(side="left", padx=GAP_M)
+        self.status_label = ctk.CTkLabel(
+            self.status_bar, text="Status: Ready", anchor="w", 
+            font=("Roboto", 12), text_color=TEXT_MUTED
+        )
+        self.status_label.pack(side="left", padx=GAP_L)
 
     # --- [ LOGIC ENGINE ] ---
 
     def apply_styles(self):
-        """Ensures all components follow the Sci-Fi styling guidelines."""
-        self.sidebar_frame.configure(fg_color=CYBER_SIDEBAR, border_width=BORDER_W, border_color=CYBER_ACCENT)
-        self.registration_frame.configure(border_width=1, border_color=CYBER_ACCENT)
-        self.log_frame.configure(border_width=1, border_color=CYBER_BORDER)
+        """Ensures all components follow the clean styling guidelines."""
         self.refresh_vault()
 
     def toggle_registration_form(self):
         if self.registration_frame.winfo_viewable():
             self.registration_frame.grid_forget()
-            self.reg_toggle_btn.configure(text="[ SYNC_NEW_NODE ]")
+            self.reg_toggle_btn.configure(text="+ Add New Student", fg_color=BG_CARD, text_color=TEXT_MAIN)
         else:
             self.registration_frame.grid(row=3, column=0, sticky="ew", padx=GAP_M, pady=(0, GAP_M))
-            self.reg_toggle_btn.configure(text="CANCEL_SYNC")
+            self.reg_toggle_btn.configure(text="Cancel Registration", fg_color=BG_MAIN, text_color=COLOR_ERROR)
 
     def validate_and_start(self):
         """Regex validation for registration fields."""
@@ -243,16 +287,16 @@ class FaceApp(ctk.CTk):
         roll = self.roll_entry.get().strip()
         
         if not roll.isdigit():
-            self._update_instructions("ERR: Token must be numeric.", CYBER_ERROR)
+            self._update_instructions("Error: Roll Number must be numeric.", COLOR_ERROR)
             return
         if not re.match(r"^[a-zA-Z\s]+$", name):
-            self._update_instructions("ERR: Alias must be letters.", CYBER_ERROR)
+            self._update_instructions("Error: Name must contain only letters.", COLOR_ERROR)
             return
             
         # CRITICAL: Take focus off input so keyboard 'S' doesn't type into the box
         self.focus_set()
         self.mode = "Register"
-        self._update_instructions(f"READY: Press 'S' to capture {name}.", CYBER_ACCENT)
+        self._update_instructions(f"Ready: Look at the camera and press 'S' to capture {name}.", ACCENT_BLUE)
 
     def save_face_handler(self, event):
         """Captures face encoding and saves to local PKL database."""
@@ -261,7 +305,7 @@ class FaceApp(ctk.CTk):
             name = self.name_entry.get().strip().rstrip('sS')
             roll = self.roll_entry.get().strip().rstrip('sS')
             
-            self._update_instructions("SCANNING... KEEP STILL", CYBER_ACCENT)
+            self._update_instructions("Scanning face... Please keep still.", ACCENT_BLUE)
             
             boxes = face_recognition.face_locations(self.latest_rgb_frame)
             encs = face_recognition.face_encodings(self.latest_rgb_frame, boxes)
@@ -277,10 +321,10 @@ class FaceApp(ctk.CTk):
                 self.refresh_vault()
                 self.toggle_registration_form()
                 self.name_entry.delete(0, 'end'); self.roll_entry.delete(0, 'end')
-                self._update_instructions(f"SUCCESS: {name} Registered.", CYBER_LABEL)
+                self._update_instructions(f"Success: {name} registered successfully.", COLOR_SUCCESS)
                 self.mode = "Idle"
             else:
-                self._update_instructions("ERR: Face not found. Retrying...", CYBER_ERROR)
+                self._update_instructions("Error: Face not found. Try again.", COLOR_ERROR)
 
     def log_attendance(self, name, roll):
         """Handles Excel operations and log frequency capping."""
@@ -304,33 +348,39 @@ class FaceApp(ctk.CTk):
         self.last_logged_time[roll] = now
         
         # Update live feed
-        self.activity_log.insert("0.0", f"[{now.strftime('%H:%M:%S')}] {name} >> GRANTED\n")
+        self.activity_log.insert("0.0", f"[{now.strftime('%H:%M:%S')}] ✅ {name} - Present\n")
 
     def refresh_vault(self):
         """Redraws the Student Directory with individual Purge buttons."""
         for widget in self.scrollable_vault.winfo_children(): widget.destroy()
         
         for i, (name, roll) in enumerate(zip(self.data["names"], self.data["rolls"])):
-            card = ctk.CTkFrame(self.scrollable_vault, fg_color=CYBER_DARK, height=50, border_width=1, border_color=CYBER_BORDER)
-            card.pack(fill="x", pady=4, padx=5)
+            card = ctk.CTkFrame(self.scrollable_vault, fg_color=BG_CARD, height=55, corner_radius=6)
+            card.pack(fill="x", pady=6, padx=10)
             
-            ctk.CTkLabel(card, text=f"#{roll}", width=80, text_color=CYBER_ACCENT, font=(FONT_TERMINAL, 12, "bold")).pack(side="left", padx=10)
-            ctk.CTkLabel(card, text=name, width=200, anchor="w", text_color="white").pack(side="left")
+            # Roll Number
+            ctk.CTkLabel(card, text=f"#{roll}", width=70, text_color=TEXT_MUTED, font=("Roboto", 13, "bold")).pack(side="left", padx=(15, 5))
+            # Name
+            ctk.CTkLabel(card, text=name, width=250, anchor="w", text_color=TEXT_MAIN, font=FONT_MAIN).pack(side="left")
             
+            # Delete Button
             ctk.CTkButton(
-                card, text="PURGE", width=60, height=26, fg_color="#922b21", 
+                card, text="Remove", width=80, height=30, 
+                fg_color="transparent", border_width=1, border_color=COLOR_ERROR, text_color=COLOR_ERROR,
+                hover_color="#451515",
                 command=lambda idx=i: self.delete_student(idx)
-            ).pack(side="right", padx=10)
+            ).pack(side="right", padx=15)
 
     def delete_student(self, idx):
         """Permanent removal of biometric node."""
+        student_name = self.data["names"][idx]
         self.data["names"].pop(idx)
         self.data["rolls"].pop(idx)
         self.data["encodings"].pop(idx)
         with open(self.DB_FILE, "wb") as f:
             pickle.dump(self.data, f)
         self.refresh_vault()
-        self._update_instructions("Node purged from database.", CYBER_ERROR)
+        self._update_instructions(f"{student_name} removed from database.", TEXT_MUTED)
 
     def update_frame(self):
         """Core CV2 loop with automated face recognition."""
@@ -342,7 +392,7 @@ class FaceApp(ctk.CTk):
             if self.mode == "Recognize":
                 # Safety Check: Empty Database protection
                 if not self.data["encodings"]:
-                    self._update_instructions("ERR: Vault Empty. Sync nodes first.", CYBER_ERROR)
+                    self._update_instructions("Error: Database empty. Add students first.", COLOR_ERROR)
                     self.mode = "Idle"
                 else:
                     boxes = face_recognition.face_locations(rgb_frame)
@@ -357,8 +407,9 @@ class FaceApp(ctk.CTk):
                             self.log_attendance(name, roll)
                             
                             t, r, b, l = box
-                            cv2.rectangle(frame, (l, t), (r, b), (255, 255, 0), 2)
-                            cv2.putText(frame, name, (l, t-10), 1, 0.8, (255, 255, 0), 2)
+                            # Draw cleaner bounding box using accent blue (BGR format for OpenCV)
+                            cv2.rectangle(frame, (l, t), (r, b), (246, 130, 59), 2) 
+                            cv2.putText(frame, name, (l, t-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (246, 130, 59), 2)
 
             # Display Output
             img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -380,25 +431,32 @@ class FaceApp(ctk.CTk):
         if self.chart_canvas: self.chart_canvas.get_tk_widget().destroy()
         
         fig = Figure(figsize=(6, 4), dpi=100); ax = fig.add_subplot(111)
-        fig.patch.set_facecolor(CYBER_SIDEBAR); ax.set_facecolor(CYBER_SIDEBAR)
+        # Match the background to our clean theme
+        fig.patch.set_facecolor(BG_SIDEBAR); ax.set_facecolor(BG_SIDEBAR)
         
         col = "Name" if "Name" in df.columns else df.columns[0]
         counts = df.groupby(col).size()
         
-        ax.bar(counts.index.astype(str), counts.values, color=CYBER_ACCENT)
-        ax.tick_params(colors='white', labelsize=8)
-        ax.set_title("Attendance Frequency Chart", color=CYBER_ACCENT)
-        for spine in ax.spines.values(): spine.set_color(CYBER_ACCENT)
+        # Clean Bar Chart Styling
+        ax.bar(counts.index.astype(str), counts.values, color=ACCENT_BLUE, edgecolor=BG_SIDEBAR)
+        ax.tick_params(colors=TEXT_MUTED, labelsize=10)
+        ax.set_title("Attendance Overview", color=TEXT_MAIN, fontsize=14, pad=15)
+        
+        # Clean up chart borders
+        for spine in ax.spines.values(): 
+            spine.set_visible(False)
+        ax.spines['bottom'].set_visible(True)
+        ax.spines['bottom'].set_color(TEXT_MUTED)
         
         canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
-        canvas.draw(); canvas.get_tk_widget().pack(expand=True, fill="both")
+        canvas.draw(); canvas.get_tk_widget().pack(expand=True, fill="both", padx=20, pady=20)
         self.chart_canvas = canvas
 
     # --- [ SYSTEM HELPERS ] ---
 
     def _update_instructions(self, text, color):
-        self.instruction_label.configure(text=f">> {text}", text_color=color)
-        self.status_label.configure(text=f">> {text}", text_color=color)
+        self.instruction_label.configure(text=text, text_color=color)
+        self.status_label.configure(text=f"Status: {text}", text_color=color)
 
     def load_data(self):
         if os.path.exists(self.DB_FILE):
@@ -414,7 +472,7 @@ class FaceApp(ctk.CTk):
         with open(self.SUBJECTS_FILE, "wb") as f: pickle.dump(self.subjects, f)
 
     def add_new_subject(self):
-        dialog = ctk.CTkInputDialog(text="New Protocol ID:", title="PROTOCOL_ENTRY")
+        dialog = ctk.CTkInputDialog(text="Enter new subject name:", title="Add Subject")
         new = dialog.get_input()
         if new and new not in self.subjects:
             self.subjects.append(new); self.save_subjects()
@@ -427,8 +485,9 @@ class FaceApp(ctk.CTk):
     def start_recognition(self):
         if self.data["names"]: 
             self.mode = "Recognize"
-            self._update_instructions("SCANNER_ACTIVE", CYBER_LABEL)
-        else: self._update_instructions("ERR: DATABASE_EMPTY", CYBER_ERROR)
+            self._update_instructions("Scanner Active. Looking for faces...", COLOR_SUCCESS)
+        else: 
+            self._update_instructions("Error: No students registered.", COLOR_ERROR)
 
 # =================================================================
 # MODULE 2: SYSTEM BOOTLOADER (Splash & Progress)
@@ -437,25 +496,25 @@ class FaceApp(ctk.CTk):
 if __name__ == "__main__":
     # Create Initialization Window
     boot = ctk.CTk()
-    boot.title("NEURAL-SCAN BOOT")
-    boot.geometry("420x200")
+    boot.title("NeuralScan Boot")
+    boot.geometry("460x220")
     boot.overrideredirect(True)
     
     # Center on screen
     sw, sh = boot.winfo_screenwidth(), boot.winfo_screenheight()
-    boot.geometry(f"+{int(sw/2-210)}+{int(sh/2-100)}")
-    boot.configure(fg_color=CYBER_DARK)
+    boot.geometry(f"+{int(sw/2-230)}+{int(sh/2-110)}")
+    boot.configure(fg_color=BG_MAIN)
 
-    ctk.CTkLabel(boot, text="NEURAL-SCAN TERMINAL v9.0", font=(FONT_TERMINAL, 18, "bold"), text_color=CYBER_ACCENT).pack(pady=(30, 5))
-    ctk.CTkLabel(boot, text="DECRYPTING AI WEIGHTS...", font=(FONT_TERMINAL, 11), text_color=CYBER_LABEL).pack()
+    ctk.CTkLabel(boot, text="NeuralScan Terminal", font=("Roboto", 22, "bold"), text_color=ACCENT_BLUE).pack(pady=(40, 5))
+    ctk.CTkLabel(boot, text="Initializing core components...", font=("Roboto", 12), text_color=TEXT_MUTED).pack()
     
-    progress = ctk.CTkProgressBar(boot, width=340, progress_color=CYBER_ACCENT)
-    progress.pack(pady=25); progress.set(0)
+    progress = ctk.CTkProgressBar(boot, width=360, height=10, progress_color=ACCENT_BLUE, fg_color=BG_CARD)
+    progress.pack(pady=30); progress.set(0)
 
     def launch_sequence():
         # Simulated loading progress (actual logic loads in background)
         for i in range(1, 11):
-            progress.set(i/10); boot.update(); time.sleep(0.12)
+            progress.set(i/10); boot.update(); time.sleep(0.08)
         
         # Close the PyInstaller Splash image
         if pyi_splash: pyi_splash.close()
